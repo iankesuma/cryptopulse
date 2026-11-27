@@ -145,3 +145,35 @@ skrip audit. Konsekuensi: panel LightGBM diturunkan jadi **info-only**, bukan vo
 dua bug Wilder diperbaiki, tapi *edge*-nya tipis dan hanya muncul di horizon 60 menit;
 masalah utamanya bukan kurang indikator, melainkan horizon dan bobot yang belum
 mengikuti bukti — keduanya sudah diperbaiki sekarang.
+
+
+---
+
+## 8. Basis timeframe: kenapa M1 (dan bukan M5/M15/H1)
+
+Pertanyaan wajar: semua indikator dihitung dari candle **1 menit**. Apakah itu pilihan
+yang benar, atau cuma warisan dari video referensi? Diuji: fitur yang sama dihitung pada
+basis M5, M15, H1, lalu diuji pada horizon yang sama dalam menit (supaya setara).
+Skrip: `audit/tf_basis.py`, 8 instrumen, ~8.000 bar per TF.
+
+| basis | H=15m | H=60m | H=240m |
+|---|---|---|---|
+| **M1** (audit utama) | 46.5% (kontrarian 51.2%) | 50.7% (macd+atr **51.6%**, edge +0.109%) | — |
+| M5 | 47.4% | 46.7% | 44.2% |
+| M15 | 48.1% | 48.3% | 47.2% |
+| H1 | 47.9% (1 bar = 60m) | 47.9% | 48.8% |
+
+Bacaan:
+
+1. **Tidak ada bukti basis TF lebih tinggi lebih baik.** Semua kombinasi M5/M15/H1
+   berada di 44–49% (di bawah 50%). Satu-satunya kombinasi yang >50% adalah basis M1
+   dengan horizon 60 menit + fitur MACD/ATR-momentum.
+2. **Yang menentukan adalah horizon, bukan basis.** M1 unggul karena memberi resolusi
+   untuk horizon 60 menit sekaligus sampel paling banyak (20.160 bar vs 1.344 di M15).
+3. **Tetapi jujur: perbedaannya masih di dalam noise.** CI95 semua baris tumpang tindih
+   (≈45–52%); 8 instrumen, satu rezim pasar. Jadi klaim yang boleh: *belum ada bukti
+   basis lain lebih baik*, bukan *M1 terbukti superior*.
+
+Konsekuensi praktis: indikator tetap dihitung di M1 (histori 1000 bar ≈ 16 jam,
+chart 180 bar = 3 jam), horizon prediksi 60 menit, dan filter rezim memakai close
+15m/60m hasil subsample dari M1 — bukan klines TF lain.

@@ -15,7 +15,6 @@ import indicators as I
 BINANCE_REST = "https://data-api.binance.vision"
 TWELVEDATA_KEY = "a2e73c08d1ee41dcadd63e5cac49f28a"
 GOLD_TICK_URL = "https://api.gold-api.com/price/XAU"
-HORIZON_MIN = 15
 
 # coin major Binance USDT + XAU/USD (gold spot, sumber Twelve Data + gold-api.com)
 INSTRUMENTS = [
