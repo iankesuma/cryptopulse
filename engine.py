@@ -759,6 +759,10 @@ class SymbolState:
             },
             "macro": {
                 "status": "PASS" if macro_pass else "FAIL",
+                "trend15": int(trend15), "trend1h": int(trend1h),
+                "atr_pct": round(float(atr_pct), 4), "vol_ok": bool(vol_ok),
+                "why": ("tren 15m & 1h searah, volatilitas wajar" if macro_pass else
+                        ("tren 15m vs 1h konflik" if trend15 != trend1h else "volatilitas di luar rentang")),
                 "note": f"15m {'↑' if trend15>0 else '↓'} · 1h {'↑' if trend1h>0 else '↓'} · ATR {atr_pct:.3f}%",
             },
             "ml": {"status": self.ml.status,

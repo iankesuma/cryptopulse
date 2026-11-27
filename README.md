@@ -9,7 +9,7 @@ dihitung sendiri dari data Binance publik. Ada dua bentuk:
 
 | versi | isi | jalankan |
 |---|---|---|
-| **Statis** (`docs/`) | 12 indikator dihitung di browser, data langsung dari Binance (REST+WS), riwayat prediksi di localStorage. Ini yang jalan di GitHub Pages. | buka URL live, atau `cd docs && python -m http.server 8100` |
+| **Statis** (`docs/`) | 12 indikator dihitung di browser, data langsung dari Binance (REST+WS), ML = regresi logistik dilatih in-browser (AUC ~0.45, info-only), riwayat prediksi di localStorage. Ini yang jalan di GitHub Pages. | buka URL live, atau `cd docs && python -m http.server 8100` |
 | **Python** (`app.py`) | sama + LightGBM asli + SQLite + WebSocket hub sendiri. Untuk lokal/backend. | `python app.py --open` → http://127.0.0.1:8099 |
 
 Dashboard sinyal + prediksi harga kripto live, dibuat mirip tampilan bot di video

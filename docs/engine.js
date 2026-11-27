@@ -26,7 +26,7 @@ const LABEL = {
   ema_ribbon: "EMA RIBBON", supertrend: "SUPERTREND", rsi_div: "RSI DIVERGENCE",
   bollinger: "BOLLINGER BANDS", vwap: "VWAP", cvd_obv: "CVD / OBV",
   funding_oi: "FUNDING & OI", ob_imbalance: "ORDER BOOK IMBALANCE",
-  ml: "LIGHTGBM MODEL", sentiment: "SENTIMENT INDEX",
+  ml: "ML MODEL (LOGIT)", sentiment: "SENTIMENT INDEX",
   macd_hist: "MACD HISTOGRAM", atr_mom: "ATR MOMENTUM",
 };
 
@@ -189,10 +189,76 @@ export function priceDecimals(p) {
   return 8;
 }
 
+/* ---------------- ML logit (dilatih di browser) ---------------- */
+export function trainLogit(kl, horizon = 60) {
+  const n = kl.length;
+  if (n < 240) return null;
+  const o = kl.map((k) => k.o), h = kl.map((k) => k.h), l = kl.map((k) => k.l);
+  const c = kl.map((k) => k.c), v = kl.map((k) => k.v), tb = kl.map((k) => k.tb);
+  const q = kl.map((k) => (k.q != null ? k.q : k.v * k.c));   // quote volume (USD)`);
+  const e9 = ema(c, 9), e21 = ema(c, 21), e55 = ema(c, 55);
+  const r = rsi(c, 14), a = atr(h, l, c, 14), bb = bollinger(c, 20, 2);
+  const ob = obv(c, v);
+  const X = [], y = [];
+  for (let i = 60; i < n - horizon; i++) {
+    const vm = v.slice(i - 19, i + 1).reduce((x, z) => x + z, 0) / 20 || 1e-9;
+    X.push([
+      (c[i] - c[i - 1]) / c[i] * 100,
+      (c[i] - c[i - 5]) / c[i] * 100,
+      (c[i] - c[i - 14]) / c[i] * 100,
+      (e9[i] - e21[i]) / c[i] * 100,
+      (e21[i] - e55[i]) / c[i] * 100,
+      r[i] / 100,
+      isFinite(bb.pb[i]) ? bb.pb[i] : 0.5,
+      a[i] / c[i] * 100,
+      linregSlope(ob.slice(i - 19, i + 1)) / vm,
+      (tb[i] / Math.max(v[i], 1e-9)),
+    ]);
+    y.push(c[i + horizon] > c[i] ? 1 : 0);
+  }
+  if (X.length < 150) return null;
+  const d = X[0].length;
+  // standarisasi
+  const mu = new Array(d).fill(0), sd = new Array(d).fill(0);
+  for (const row of X) for (let j = 0; j < d; j++) mu[j] += row[j];
+  for (let j = 0; j < d; j++) mu[j] /= X.length;
+  for (const row of X) for (let j = 0; j < d; j++) sd[j] += (row[j] - mu[j]) ** 2;
+  for (let j = 0; j < d; j++) sd[j] = Math.sqrt(sd[j] / X.length) || 1;
+  const Z = X.map((row) => row.map((x, j) => (x - mu[j]) / sd[j]));
+  const cut = Math.floor(Z.length * 0.8);
+  const w = new Array(d).fill(0); let b = 0;
+  const lr = 0.25, l2 = 0.01;
+  for (let it = 0; it < 400; it++) {
+    const gw = new Array(d).fill(0); let gb = 0;
+    for (let i = 0; i < cut; i++) {
+      let z = b; for (let j = 0; j < d; j++) z += w[j] * Z[i][j];
+      const p = 1 / (1 + Math.exp(-z)), err = p - y[i];
+      gb += err; for (let j = 0; j < d; j++) gw[j] += err * Z[i][j];
+    }
+    b -= lr * gb / cut;
+    for (let j = 0; j < d; j++) w[j] -= lr * (gw[j] / cut + l2 * w[j]);
+  }
+  const proba = (row) => {
+    let z = b; for (let j = 0; j < d; j++) z += w[j] * row[j];
+    return 1 / (1 + Math.exp(-z));
+  };
+  // AUC pada 20% terakhir (holdout)
+  const pos = [], neg = [];
+  for (let i = cut; i < Z.length; i++) (y[i] ? pos : neg).push(proba(Z[i]));
+  let auc = null;
+  if (pos.length && neg.length) {
+    let win = 0;
+    for (const p of pos) for (const q of neg) win += p > q ? 1 : p === q ? 0.5 : 0;
+    auc = win / (pos.length * neg.length);
+  }
+  return { prob: proba(Z[Z.length - 1]), n: cut, auc };
+}
+
 /* ---------------- sinyal ---------------- */
 export function buildSignals(kl, depth, sentiment) {
   const o = kl.map((k) => k.o), h = kl.map((k) => k.h), l = kl.map((k) => k.l);
   const c = kl.map((k) => k.c), v = kl.map((k) => k.v), tb = kl.map((k) => k.tb);
+  const q = kl.map((k) => (k.q != null ? k.q : k.v * k.c));   // quote volume (USD)`);
   const ts = kl.map((k) => k.t);
   const price = c[c.length - 1];
   const pdec = priceDecimals(price);
@@ -263,8 +329,8 @@ export function buildSignals(kl, depth, sentiment) {
 
   // 7. Funding & OI (proxy spot)
   const fund = (taker - 0.5) * 0.02;
-  const qRecent = v.slice(-30).reduce((a, x) => a + x, 0) / 30;
-  const qOld = v.slice(-150, -30).reduce((a, x) => a + x, 0) / 120;
+  const qRecent = q.slice(-30).reduce((a, x) => a + x, 0) / 30;
+  const qOld = q.slice(-150, -30).reduce((a, x) => a + x, 0) / 120;
   const flow = (qRecent / Math.max(qOld, 1e-9) - 1) * 100;
   let fSc = clamp(fund / 0.01 * 0.4 + flow / 40 * 0.6, -1, 1);
   if (Math.abs(fund) > 0.012 && flow > 15) fSc = -fSc * 0.6;
@@ -300,8 +366,17 @@ export function buildSignals(kl, depth, sentiment) {
   add("atr_mom", amSc > 0.2 ? "BULL" : amSc < -0.2 ? "BEAR" : "NEUTRAL",
       `mom ${ret10 >= 0 ? "+" : ""}${ret10.toFixed(2)}% / ATR ${atrPct.toFixed(2)}%`, amSc);
 
-  // 11. LightGBM (di app server; di versi statis = info-only, skor 0)
-  add("ml", "NEUTRAL", "n/a · versi statis", 0, "tidak dihitung di mode statis");
+  // 11. ML logit (dilatih di browser, horizon aktif)
+  let mlRes = null;
+  try { mlRes = trainLogit(kl, HORIZON_ACTIVE); } catch (e) { mlRes = null; }
+  if (!mlRes) {
+    add("ml", "NEUTRAL", "n/a · data kurang", 0, "logit in-browser");
+  } else {
+    const sc0 = clamp((mlRes.prob - 0.5) * 2.6, -1, 1);
+    add("ml", mlRes.prob > 0.56 ? "BULL" : mlRes.prob < 0.44 ? "BEAR" : "NEUTRAL",
+        `P(up) ${(mlRes.prob * 100).toFixed(1)}% · n=${mlRes.n}` + (mlRes.auc != null ? ` · AUC ${mlRes.auc.toFixed(3)}` : ""),
+        sc0, "logit in-browser (info-only)");
+  }
 
   // 12. Sentiment
   let snSt = "NEUTRAL", snSc = 0, snVal = "n/a";
@@ -313,13 +388,15 @@ export function buildSignals(kl, depth, sentiment) {
   }
   add("sentiment", snSt, snVal, snSc);
 
-  return { sig, price, pdec, a14 };
+  return { sig, price, pdec, a14, mlRes };
 }
 
 /* ---------------- state ---------------- */
+let HORIZON_ACTIVE = 60;
 export function buildState({ symbol, label, kl, depth, sentiment, horizon = 60 }) {
+  HORIZON_ACTIVE = horizon;
   if (!kl || kl.length < 120) return null;
-  const { sig, price, pdec, a14 } = buildSignals(kl, depth, sentiment);
+  const { sig, price, pdec, a14, mlRes } = buildSignals(kl, depth, sentiment);
   const c = kl.map((k) => k.c), h = kl.map((k) => k.h), l = kl.map((k) => k.l);
   const ic = IC_TABLE[horizon] || IC_TABLE[60];
 
@@ -403,8 +480,14 @@ export function buildState({ symbol, label, kl, depth, sentiment, horizon = 60 }
       confidence: conf, direction, decimals: pdec,
     },
     macro: { status: macroPass ? "PASS" : "FAIL",
+             trend15, trend1h, atr_pct: +atrPct.toFixed(4), vol_ok: volOk,
+             why: macroPass ? "tren 15m & 1h searah, volatilitas wajar"
+                            : (trend15 !== trend1h ? "tren 15m vs 1h konflik" : "volatilitas di luar rentang"),
              note: `15m ${trend15 > 0 ? "↑" : "↓"} · 1h ${trend1h > 0 ? "↑" : "↓"} · ATR ${atrPct.toFixed(3)}%` },
-    ml: { status: "n/a", prob: null, n: 0 },
+    ml: mlRes
+      ? { status: "logit", prob: +mlRes.prob.toFixed(4), n: mlRes.n,
+          auc: mlRes.auc != null ? +mlRes.auc.toFixed(4) : null }
+      : { status: "n/a · data kurang", prob: null, n: 0, auc: null },
     instruments: INSTRUMENTS,
     ts: Date.now(),
     source: "Binance Spot · data-api.binance.vision + data-stream (browser)",

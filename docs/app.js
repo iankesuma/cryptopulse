@@ -1,5 +1,5 @@
 /* CryptoPulse — versi statis (GitHub Pages). Data langsung dari Binance publik. */
-import { INSTRUMENTS, buildState, priceDecimals } from "./engine.js";
+import { INSTRUMENTS, buildState, priceDecimals } from "./engine.js?v=5";
 
 const REST = "https://data-api.binance.vision";
 const WSBASE = "wss://data-stream.binance.vision/stream?streams=";
@@ -27,7 +27,8 @@ async function getJSON(url) {
 
 async function loadKlines(sym, limit = 1000) {
   const raw = await getJSON(`${REST}/api/v3/klines?symbol=${sym}&interval=1m&limit=${limit}`);
-  return raw.map((k) => ({ t: k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5], tb: +k[9] }));
+  return raw.map((k) => ({ t: k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4],
+                           v: +k[5], q: +k[7], tb: +k[9] }));
 }
 async function loadTicker(sym) {
   const t = await getJSON(`${REST}/api/v3/ticker/24hr?symbol=${sym}`);
@@ -41,7 +42,7 @@ async function loadSentiment() {
 }
 
 function patchKline(k) {
-  const row = { t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, tb: +k.V };
+  const row = { t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, q: +k.q, tb: +k.V };
   S.lastPrice = row.c;
   const last = S.kl[S.kl.length - 1];
   if (last && last.t === row.t) S.kl[S.kl.length - 1] = row;
@@ -183,8 +184,10 @@ function render() {
   const mc = $("macroChip");
   mc.classList.toggle("ok", d.macro.status === "PASS");
   mc.classList.toggle("fail", d.macro.status !== "PASS");
-  $("macroText").textContent = d.macro.status;
-  mc.title = d.macro.note;
+  const m = d.macro;
+  $("macroText").textContent = m.status === "PASS" ? "PASS"
+    : `FAIL · 15m${m.trend15 > 0 ? "↑" : "↓"} 1h${m.trend1h > 0 ? "↑" : "↓"}`;
+  mc.title = `${m.why} — ${m.note}`;
 
   const wrap = $("signals");
   const byKey = new Map([...wrap.children].map((c) => [c.dataset.key, c]));
@@ -244,8 +247,11 @@ function render() {
   const dir = $("pDir"); dir.textContent = p.direction;
   dir.className = "dirchip" + (p.direction === "UP" ? " up" : p.direction === "DOWN" ? " down" : "");
 
-  $("mlStatus").textContent = "n/a";
-  $("mlProb").textContent = "—"; $("mlN").textContent = "—";
+  const ml = d.ml || {};
+  $("mlStatus").textContent = ml.status === "logit"
+    ? (ml.auc != null ? `logit · AUC ${ml.auc.toFixed(3)}` : "logit") : (ml.status || "n/a");
+  $("mlProb").textContent = ml.prob == null ? "—" : (ml.prob * 100).toFixed(1) + "%";
+  $("mlN").textContent = ml.n || "—";
   const seb = d.signals.find((s) => s.key === "sentiment");
   $("fng").textContent = seb ? seb.value : "—";
   $("srcNote").textContent = `${d.source} · depth20@1000ms · kline_1m`;
@@ -412,4 +418,23 @@ setInterval(drawChart, 1000);
 buildTabs();
 renderHz();
 boot();
-window.__cp = { S, rebuild, drawChart, boot, preds };
+async function scanAll() {
+  const out = [];
+  window.__scan = { done: false, total: INSTRUMENTS.length, rows: out };
+  for (const it of INSTRUMENTS) {
+    try {
+      const kl = await loadKlines(it.symbol, 1000);
+      const st = buildState({ symbol: it.symbol, label: it.label, kl, depth: { bids: [], asks: [] },
+                              sentiment: S.sentiment, horizon: S.horizon });
+      const bad = st.signals.filter((x) => /n\/a|NaN|undefined/.test(String(x.value)));
+      out.push({ sym: it.symbol, ok: !bad.length, macro: st.macro.status, why: st.macro.why,
+                 dir: st.summary.direction, score: st.summary.score, voters: st.summary.voters,
+                 bad: bad.map((b) => b.key + ":" + b.value) });
+      await new Promise((r) => setTimeout(r, 120));
+    } catch (e) { out.push({ sym: it.symbol, ok: false, error: String(e) }); }
+    window.__scan.rows = out.slice();
+  }
+  window.__scan.done = true;
+  return out;
+}
+window.__cp = { S, rebuild, drawChart, boot, preds, scanAll };

@@ -145,8 +145,9 @@ function renderState(d, stats, status) {
   const mc = $("macroChip");
   mc.classList.toggle("ok", d.macro.status === "PASS");
   mc.classList.toggle("fail", d.macro.status !== "PASS");
-  $("macroText").textContent = d.macro.status;
-  mc.title = d.macro.note;
+  $("macroText").textContent = d.macro.status === "PASS" ? "PASS"
+    : `FAIL · ${d.macro.note.split(" · ")[0].replace("15m ", "15m").replace("1h ", "1h")}`;
+  mc.title = `${d.macro.status === "PASS" ? "tren searah & volatilitas wajar" : "trend 15m vs 1h konflik / volatilitas di luar rentang"} — ${d.macro.note}`;
 
   /* cards */
   const wrap = $("signals");
