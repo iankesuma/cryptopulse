@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# data runtime
+data/*.db
+data/*.db-journal
+
+# cache audit (besar, bisa di-generate ulang)
+audit/cache/
+audit/__pycache__/
+
+# screenshot kerja
+screenshot-15m.png
+screenshot-xauusd.png
+screenshot-xaut.png
+screenshot-static.png

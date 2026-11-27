@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CryptoPulse — Live Signal &amp; Price Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=2" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◈</span>
+      <span class="brandname">CRYPTOPULSE</span>
+      <span class="brandsub">signal engine</span>
+    </div>
+
+    <nav class="pairtabs" id="pairtabs"></nav>
+
+    <div class="topright">
+      <div class="chip pairs"> <b id="pairCount">3</b> pairs</div>
+      <div class="chip hz" id="hzChips"></div>
+      <div class="chip macro" id="macroChip"><span class="dot"></span> Macro: <b id="macroText">—</b></div>
+      <div class="chip conn" id="connChip"><span class="dot" id="connDot"></span><span id="connText">connecting</span></div>
+    </div>
+  </header>
+
+  <!-- ================= HERO PRICE ================= -->
+  <section class="hero">
+    <div class="herorow">
+      <div class="heroleft">
+        <div class="pairlabel" id="heroPair">ETH/USDT</div>
+        <div class="price"><span id="price">—</span><span class="pricetag" id="priceTag"></span></div>
+        <div class="pricemeta">
+          <span id="chg24">—</span>
+          <span class="sep">·</span> H <span id="hi24">—</span>
+          <span class="sep">·</span> L <span id="lo24">—</span>
+          <span class="sep">·</span> Vol <span id="vol24">—</span>
+        </div>
+      </div>
+      <div class="herochart"><canvas id="chart" height="220"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ================= 10 SIGNAL CARDS ================= -->
+  <section class="signals" id="signals"></section>
+
+  <!-- ================= SUMMARY ================= -->
+  <section class="summary">
+    <div class="sumtop">
+      <div class="counts">
+        <span class="cnt bull"><i>▲</i><b id="bullN">0</b> Bullish</span>
+        <span class="cnt neutral"><i>●</i><b id="neutralN">0</b> Neutral</span>
+        <span class="cnt bear"><i>▼</i><b id="bearN">0</b> Bearish</span>
+      </div>
+      <div class="scorewrap">
+        <span class="scorelabel">SCORE</span>
+        <div class="scorebar"><div class="scorefill" id="scoreFill"></div><div class="scorezero"></div></div>
+        <span class="scoreval" id="scoreVal">0.00</span>
+      </div>
+      <div class="verdict" id="verdict">WAIT — Menunggu Sinyal</div>
+    </div>
+    <div class="sreason" id="reason">—</div>
+    <div class="propbar">
+      <div class="seg bull" id="segBull" style="width:34%"></div>
+      <div class="seg neutral" id="segNeutral" style="width:56%"></div>
+      <div class="seg bear" id="segBear" style="width:10%"></div>
+    </div>
+  </section>
+
+  <!-- ================= PREDICTION ================= -->
+  <section class="predict">
+    <div class="pcell">
+      <div class="plabel">HARGA SAAT INI</div>
+      <div class="pval" id="pNow">—</div>
+      <div class="psub" id="pNowSub">—</div>
+    </div>
+    <div class="pcell">
+      <div class="plabel">PREDIKSI <span id="horizon">15M</span></div>
+      <div class="pval" id="pTarget">—</div>
+      <div class="psub" id="pTargetSub">—</div>
+    </div>
+    <div class="pcell">
+      <div class="plabel">ESTIMATED RANGE</div>
+      <div class="pval small" id="pRange">—</div>
+      <div class="psub" id="pRangeSub">band kepercayaan</div>
+    </div>
+    <div class="pcell">
+      <div class="plabel">CONFIDENCE</div>
+      <div class="pval" id="pConf">—</div>
+      <div class="confbar"><div id="confFill"></div></div>
+    </div>
+    <div class="pcell dir">
+      <div class="plabel">BIAS</div>
+      <div class="dirchip" id="pDir">WAIT</div>
+      <div class="psub" id="pCountdown">—</div>
+    </div>
+  </section>
+
+  <!-- ================= STATS + FOOTER ================= -->
+  <section class="bottom">
+    <div class="statcard">
+      <div class="stathead">AKURASI PREDIKSI <span class="muted">(rolling, auto-resolve 15m)</span></div>
+      <div class="statrow">
+        <div><b id="accVal">—</b><span>hit rate</span></div>
+        <div><b id="accTotal">0</b><span>resolved</span></div>
+        <div><b id="accPending">0</b><span>pending</span></div>
+      </div>
+      <div class="recent" id="recent"></div>
+    </div>
+    <div class="statcard">
+      <div class="stathead">MODEL &amp; SUMBER DATA</div>
+      <div class="mlrow">
+        <div class="mlcell"><span>LightGBM</span><b id="mlStatus">—</b></div>
+        <div class="mlcell"><span>P(up)</span><b id="mlProb">—</b></div>
+        <div class="mlcell"><span>sample</span><b id="mlN">—</b></div>
+        <div class="mlcell"><span>sentiment</span><b id="fng">—</b></div>
+      </div>
+      <div class="note" id="srcNote">Binance Spot · data-api.binance.vision + data-stream (WS)</div>
+      <div class="note" id="voterNote">—</div>
+      <div class="note" id="btNote">—</div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="fleft"><span class="pulse"></span> <span id="footStatus">live</span></div>
+    <div class="fmid" id="footMid">—</div>
+    <div class="fright"><span id="clock">--:--:--</span> <span class="tz">WIB</span></div>
+  </footer>
+</div>
+<script src="/static/app.js?v=2"></script>
+</body>
+</html>
