@@ -177,3 +177,31 @@ Bacaan:
 Konsekuensi praktis: indikator tetap dihitung di M1 (histori 1000 bar ≈ 16 jam,
 chart 180 bar = 3 jam), horizon prediksi 60 menit, dan filter rezim memakai close
 15m/60m hasil subsample dari M1 — bukan klines TF lain.
+
+
+---
+
+## 9. Koreksi penting: angka 51,6% itu artefak offset sampling
+
+Pengujian ulang dengan **event-based** (satu trade per event, dijarangkan ≥ horizon) dan
+**multi-offset** (grid sampling digeser 0..59 bar) mengubah gambaran:
+
+| evaluasi | hit rate |
+|---|---|
+| macd+atr, stride grid offset 400 (versi laporan awal) | 51,6% |
+| macd+atr, **12 offset berbeda** | min 46,3% / median **47,6%** / max 51,6% (std 1,39 pp) |
+| ensemble, 12 offset | min 45,6% / median 47,2% / max 51,0% |
+| ensemble H15, 12 offset | 45,7–46,1% (sangat stabil) |
+| macd+atr H240, 12 offset | 44,1–50,4%, median 47,8% |
+
+Event-based, horizon 60 menit: semua sinyal 46,1% · 3/3 keluarga 47,0% ·
+breakout Donchian 48,8% · breakout + 2/3 keluarga **49,2%** (edge +0,023%, net −0,077%
+setelah fee 0,10%). Skrip: `audit/best_config.py`.
+
+**Artinya:** 51,6% bukan edge, tapi hasil memilih grid sampling yang menguntungkan.
+Hit rate sebenarnya ada di sekitar 47–48% untuk horizon 60–240 menit, dan 46% untuk 15
+menit. Tidak ada timeframe yang lolos biaya transaksi dengan set fitur ini.
+
+Urutan "paling tidak buruk": **H60 ≈ H240 > H30 > H15/H5**. Untuk alat konteks, H60
+paling masuk akal (sinyal paling jarang berubah, gerak per jam masih terukur); untuk
+klaim tradable, tidak ada yang layak.
