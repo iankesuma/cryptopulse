@@ -1,5 +1,9 @@
 # Deploy ke GitHub Pages (versi statis)
 
+**Status: SUDAH LIVE** → https://iankesuma.github.io/cryptopulse/ (branch `main`, folder `/docs`,
+HTTPS aktif). Update konten = commit + push; Pages rebuild otomatis ~1 menit.
+
+
 GitHub Pages hanya menyajikan file statis — tidak bisa menjalankan Python/FastAPI.
 Karena itu ada versi statis di folder **`docs/`**: seluruh perhitungan indikator
 dipindah ke JavaScript (`docs/engine.js`), data diambil langsung dari API publik

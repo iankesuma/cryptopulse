@@ -1,10 +1,22 @@
 # CryptoPulse
 
+**Live:** https://iankesuma.github.io/cryptopulse/ · **Repo:** https://github.com/iankesuma/cryptopulse
+
+![CryptoPulse](docs/preview.png)
+
+Dashboard sinyal + prediksi harga (23 instrumen crypto & emas XAUT), semua indikator
+dihitung sendiri dari data Binance publik. Ada dua bentuk:
+
+| versi | isi | jalankan |
+|---|---|---|
+| **Statis** (`docs/`) | 12 indikator dihitung di browser, data langsung dari Binance (REST+WS), riwayat prediksi di localStorage. Ini yang jalan di GitHub Pages. | buka URL live, atau `cd docs && python -m http.server 8100` |
+| **Python** (`app.py`) | sama + LightGBM asli + SQLite + WebSocket hub sendiri. Untuk lokal/backend. | `python app.py --open` → http://127.0.0.1:8099 |
+
 Dashboard sinyal + prediksi harga kripto live, dibuat mirip tampilan bot di video
 (10 panel indikator, ringkasan sinyal, panel prediksi 15 menit). Semua angka
 dihitung dari data pasar asli Binance — tidak ada angka hardcode.
 
-**Buka:** http://127.0.0.1:8099
+**Lokal (versi Python):** http://127.0.0.1:8099
 
 ## Jalanin
 
